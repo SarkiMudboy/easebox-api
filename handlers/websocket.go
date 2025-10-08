@@ -98,7 +98,7 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Handles websocket messages from client
+// Handles websocket messages from clientL temp conn param to echo
 func handleMessage(message []byte) error {
 	var wsMessage models.WebSocketMessage
 
