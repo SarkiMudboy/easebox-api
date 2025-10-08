@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tracker</title>
+  </head>
+  <body>
+    <style>
+      .root {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        height: 100vh;
+      }
+
+      #bigTitle {
+        font-family: "Courier New", Courier, monospace;
+        font-size: large;
+        font-weight: 300;
+        width: fit-content;
+      }
+
+      #status {
+        font-family: "Lucida Sans", "Lucida Sans Regular", "Lucida Grande",
+          "Lucida Sans Unicode", Geneva, Verdana, sans-serif;
+        font-size: medium;
+        font-weight: 300;
+        margin: 20px;
+      }
+
+      .display-box {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 2px;
+        gap: 20px;
+      }
+
+      .location {
+        font-family: monospace;
+        font-weight: 300;
+        font-size: medium;
+      }
+
+      button {
+        font-family: "Lucida Sans", "Lucida Sans Regular", "Lucida Grande",
+          "Lucida Sans Unicode", Geneva, Verdana, sans-serif;
+        display: flex;
+        justify-items: center;
+        align-items: center;
+        padding: 20px;
+        border: none;
+        border-radius: 4px;
+        height: 20px;
+      }
+
+      /* button :hover {
+        border: 1px solid #c2e39a;
+      } */
+
+      #btnStart {
+        background-color: aquamarine;
+      }
+
+      #btnStop {
+        background-color: tomato;
+      }
+
+      .data-area {
+        display: flex;
+        flex-direction: column;
+        justify-items: center;
+        align-items: center;
+        gap: 20px;
+        padding: 12px;
+        margin: 2px;
+      }
+    </style>
+    <div class="root">
+      <h2 id="bigTitle">Real-time location tracker @ {{.}}</h2>
+      <div class="data-area">
+        <h3 id="status">Status: DISCONNECTED</h3>
+        <div class="display-box" id="location-data">
+          <div class="location" id="long">Long: 0</div>
+          <div class="location" id="lat">Lat: 0</div>
+        </div>
+        <div class="display-box" id="controls">
+          <button id="btnStart"><span>Start</span></button>
+          <button id="btnStop"><span>Stop</span></button>
+        </div>
+      </div>
+    </div>
+    <script>
+      // DOM
+
+      const statusEl = document.getElementById("status");
+      const longEl = document.getElementById("long");
+      const latEl = document.getElementById("lat");
+      const btnStart = document.getElementById("btnStart");
+      const btnStop = document.getElementById("btnStop");
+
+      // update
+
+      function updateStatus(status) {
+        statusEl.textContent = status;
+        console.log(status);
+      }
+
+      function updateLocationDisplay(latitude, longitude) {
+        // latEl.textContent = "Lat: " + latitude.toFixed(6);
+        // longEl.textContent = "Long: " + longitude.toFixed(6);
+        latEl.textContent = "Lat: " + latitude;
+        longEl.textContent = "Long: " + longitude;
+      }
+
+      // State
+
+      let ws = null;
+      let watchId = null;
+      let sessionId = null;
+      let trackingState = {
+        isTracking: false,
+        sessionId: null,
+        startTime: null,
+        latUpdateTime: null,
+      };
+
+      function generateSessionId() {
+        return (
+          "session_" +
+          Date.now() +
+          "_" +
+          Math.random().toString(36).substring(2, 9)
+        );
+      }
+
+      // WS conn
+
+      function connectWebSocket() {
+        const protocol = window.location.protocol == "https:" ? "wss:" : "ws:";
+        const websocketURL = protocol + "//" + window.location.host + "/track";
+        console.log(websocketURL);
+
+        ws = new WebSocket(websocketURL);
+
+        ws.onopen = () => {
+          updateStatus("CONNECTED");
+          console.log("Websocket connected");
+        };
+
+        ws.onerror = (error) => {
+          console.error("Websocket Error: ", error);
+          updateStatus("ERROR");
+        };
+
+        ws.onmessage = (event) => {
+          console.log("Received message: ", event.data);
+        };
+      }
+
+      function sendMessage(type, locationData = null) {
+        if (!ws || ws.readyState != WebSocket.OPEN) {
+          console.error("Websocket not connected");
+          return;
+        }
+
+        const message = {
+          type: type,
+          sessionId: sessionId,
+          data: locationData,
+          state: trackingState,
+        };
+
+        ws.send(JSON.stringify(message));
+        console.log("Sent message: ", message);
+      }
+
+      function handleLocationUpdate(position) {
+        const locationData = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          timestamp: Date.now(),
+          speed: position.coords.speed,
+          heading: position.coords.heading,
+        };
+
+        updateLocationDisplay(locationData.latitude, locationData.longitude);
+
+        trackingState.lastUpdateTime = locationData.timestamp;
+
+        sendMessage("location_update", locationData);
+      }
+
+      // Handle Location Error
+      function handleLocationError(error) {
+        console.error("Location Error: ", error);
+        let errorMsg = "LOCATION ERROR: ";
+
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMsg += "Permission Denied";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMsg += "Position unavailable";
+            break;
+          case error.TIMEOUT:
+            errorMsg += "Request timeout";
+            break;
+          default:
+            errorMsg += "Unknown error";
+        }
+
+        updateStatus(errorMsg);
+        stopTracking();
+      }
+
+      function startTracking() {
+        if (!ws || ws.readyState != WebSocket.OPEN) {
+          alert("WebSocket is not connected. Please refresh the page.");
+          return;
+        }
+
+        if (trackingState.isTracking) {
+          console.log("Already tracking");
+          return;
+        }
+
+        sessionId = generateSessionId();
+        console.log("Starting new session: ", sessionId);
+
+        trackingState = {
+          isTracking: true,
+          sessionId: sessionId,
+          startTime: Date.now(),
+          lastUpdateTime: null,
+        };
+
+        sendMessage("start");
+
+        // Start watching pos
+        watchId = navigator.geolocation.watchPosition(
+          handleLocationUpdate,
+          handleLocationError,
+          { enableHighAccuracy: true, timeout: 1500, maximumAge: 0 }
+        );
+
+        updateStatus("TRACKING");
+        btnStart.disabled = true;
+        btnStop.disabled = false;
+      }
+
+      function stopTracking() {
+        if (!trackingState.isTracking) {
+          console.log("No tracking information");
+          return;
+        }
+
+        if (watchId != null) {
+          navigator.geolocation.clearWatch(watchId);
+          watchId = null;
+        }
+
+        sendMessage("stop");
+        trackingState.isTracking = false;
+
+        updateStatus("DISCONNECTED");
+        btnStart.disabled = false;
+        btnStop.disabled = true;
+      }
+
+      btnStart.addEventListener("click", () => {
+        startTracking();
+      });
+
+      btnStop.addEventListener("click", () => {
+        stopTracking();
+      });
+
+      // Initialize WebSocket on page load
+      connectWebSocket();
+    </script>
+  </body>
+</html>
