@@ -49,7 +49,7 @@ func (r *locationRepository) Create(ctx context.Context, location *domain.Locati
 	return nil
 }
 
-func (r *locationRepository) GetBySessionID(ctx context.Context, sessionID string) (locations *[]domain.LocationUpdate, err error) {
+func (r *locationRepository) GetBySessionID(ctx context.Context, sessionID string) (locations []*domain.LocationUpdate, err error) {
 	query := `
 		SELECT 
 			(id, delivery_id, ST_Y(location::geometry) as latitude, ST_X(location::geometry) as longitude, accuracy, speed, heading, recorded_at, created_at) 
@@ -80,7 +80,7 @@ func (r *locationRepository) GetBySessionID(ctx context.Context, sessionID strin
 	return
 }
 
-func (r *locationRepository) GetByDeliveryID(ctx context.Context, deliveryID string) (locations *[]domain.LocationUpdate, err error) {
+func (r *locationRepository) GetByDeliveryID(ctx context.Context, deliveryID string) (locations []*domain.LocationUpdate, err error) {
 	query := `
 		SELECT 
 			(id, session_id, ST_Y(location::geometry) as latitude, ST_X(location::geometry) as longitude, accuracy, speed, heading, recorded_at, created_at) 
@@ -126,8 +126,8 @@ func (r *locationRepository) GetLatestBySessionID(ctx context.Context, sessionID
 			created_at
 		FROM location_updates
 		WHERE session_id = $1
-		ORDER BY session_id, recorded_at DESC;
-
+		ORDER BY session_id, recorded_at DESC
+		LIMIT 1;
 	`
 
 	err = r.db.QueryRowContext(ctx, query, sessionID).Scan(&loc)
@@ -138,3 +138,5 @@ func (r *locationRepository) GetLatestBySessionID(ctx context.Context, sessionID
 
 	return
 }
+
+func GetWithinRadius(ctx context.Context, lat, long, radiusMeters float64) ([]*domain.LocationUpdate, error) {}
