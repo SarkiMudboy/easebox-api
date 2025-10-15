@@ -89,9 +89,12 @@ func (r *locationRepository) GetByDeliveryID(ctx context.Context, deliveryID str
 		ORDER BY recorded_at ASC
 	`
 	rows, err := r.db.QueryContext(ctx, query, deliveryID)
+	
 	if err != nil {
 		return nil, fmt.Errorf("Failed to retrieve location update: %w", err)
 	}
+
+	defer rows.Close()
 
 	for rows.Next() {
 		location := &domain.LocationUpdate{}
@@ -105,8 +108,6 @@ func (r *locationRepository) GetByDeliveryID(ctx context.Context, deliveryID str
 		}
 		locations = append(locations, location)
 	}
-
-	defer rows.Close()
 
 	return
 }
@@ -139,4 +140,4 @@ func (r *locationRepository) GetLatestBySessionID(ctx context.Context, sessionID
 	return
 }
 
-func GetWithinRadius(ctx context.Context, lat, long, radiusMeters float64) ([]*domain.LocationUpdate, error) {}
+// func GetWithinRadius(ctx context.Context, lat, long, radiusMeters float64) ([]*domain.LocationUpdate, error) {}

@@ -1,200 +1,197 @@
 package handlers
 
-import (
-	"encoding/json"
-	"log"
-	"net/http"
-	"time"
+// import (
+// 	"encoding/json"
+// 	"log"
+// 	"net/http"
+// 	"time"
 
-	"github.com/SarkiMudboy/easebox-api/models"
-	"github.com/gorilla/websocket"
-)
+// 	"github.com/SarkiMudboy/easebox-api/models"
+// 	"github.com/gorilla/websocket"
+// )
 
-type ValidationError struct {
-	Message string
-}
+// type ValidationError struct {
+// 	Message string
+// }
 
-func (e *ValidationError) Error() string {
-	return e.Message
-}
+// func (e *ValidationError) Error() string {
+// 	return e.Message
+// }
 
-var (
-	ErrInvalidMessageType = &ValidationError{"invalid or missing type"}
-	ErrMissingSessionID = &ValidationError{"missing session ID"}
-	ErrMissingLocationData = &ValidationError{"location_update requires location data"}
-	ErrorInvalidLatitude = &ValidationError{"latitude must be between -90 and 90"}
-	ErrorInvalidLongitude = &ValidationError{"longitude must be between -180 and 180"}
-	ErrorInvalidAccuracy = &ValidationError{"accuracy cannot be negative"}
-)
+// var (
+// 	ErrInvalidMessageType = &ValidationError{"invalid or missing type"}
+// 	ErrMissingSessionID = &ValidationError{"missing session ID"}
+// 	ErrMissingLocationData = &ValidationError{"location_update requires location data"}
+// 	ErrorInvalidLatitude = &ValidationError{"latitude must be between -90 and 90"}
+// 	ErrorInvalidLongitude = &ValidationError{"longitude must be between -180 and 180"}
+// 	ErrorInvalidAccuracy = &ValidationError{"accuracy cannot be negative"}
+// )
 
+// var upgrader = websocket.Upgrader{
+// 	ReadBufferSize: 1024,
+// 	WriteBufferSize: 1024,
+// 	CheckOrigin: func(r *http.Request) bool {
+// 		// Allow all origins for development
+// 		// TODO: Restrict origins in production
+// 		return true
+// 	},
+// }
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize: 1024,
-	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		// Allow all origins for development
-		// TODO: Restrict origins in production
-		return true
-	},
-}
+// func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
+// 	conn, err := upgrader.Upgrade(w, r, nil)
+// 	if err != nil {
+// 		log.Printf("Error upgrading connection: %v", err)
+// 		return
+// 	}
 
+// 	defer conn.Close()
 
-func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Printf("Error upgrading connection: %v", err)
-		return
-	}
+// 	log.Printf("New Websocket connection established: %v", r.RemoteAddr)
 
-	defer conn.Close()
+// 	conn.SetPongHandler(func (string) error {
+// 		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+// 		return nil
+// 	})
 
-	log.Printf("New Websocket connection established: %v", r.RemoteAddr)
+// 	ticker := time.NewTicker(30 * time.Second)
+// 	defer ticker.Stop()
 
-	conn.SetPongHandler(func (string) error {
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-		return nil
-	})
+// 	// Channel for recieving stop signal: stop websocket
+// 	done := make(chan bool)
 
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
+// 	go func() {
+// 		for {
+// 			select {
+// 			case <- ticker.C:
+// 				if err := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10 * time.Second)); err != nil {
+// 					log.Printf("Error sending ping: %v", err)
+// 					return
+// 				}
+// 			case <- done:
+// 				return
+// 			}
+// 		}
+// 	}()
 
-	// Channel for recieving stop signal: stop websocket
-	done := make(chan bool)
+// 	// Read loop
+// 	for {
+// 		_, message, err := conn.ReadMessage()
 
-	go func() {
-		for {
-			select {
-			case <- ticker.C:
-				if err := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10 * time.Second)); err != nil {
-					log.Printf("Error sending ping: %v", err)
-					return
-				}
-			case <- done:
-				return
-			}
-		}
-	}()
+// 		if err != nil {
+// 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+// 				log.Printf("Unexpected WebSocket close error: %v", err)
+// 			} else {
+// 				log.Println("Websocket connection closed")
+// 			}
+// 			close(done)
+// 			break
+// 		}
 
-	// Read loop
-	for {
-		_, message, err := conn.ReadMessage()
+// 		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("Unexpected WebSocket close error: %v", err)
-			} else {
-				log.Println("Websocket connection closed")
-			}
-			close(done)
-			break
-		}
+// 		if err := handleMessage(message); err != nil {
+// 			log.Printf("Error handling message: %v", err)
+// 			sendError(conn, err.Error())
+// 		}
+// 	}
+// }
 
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+// // Handles websocket messages from clientL temp conn param to echo
+// func handleMessage(message []byte) error {
+// 	var wsMessage models.WebSocketMessage
 
-		if err := handleMessage(message); err != nil {
-			log.Printf("Error handling message: %v", err)
-			sendError(conn, err.Error())
-		}
-	}
-}
+// 	if err := json.Unmarshal(message, &wsMessage); err != nil {
+// 		return err
+// 	}
 
-// Handles websocket messages from clientL temp conn param to echo
-func handleMessage(message []byte) error {
-	var wsMessage models.WebSocketMessage
+// 	if err := validateMessage(&wsMessage); err != nil {
+// 		return err
+// 	}
 
-	if err := json.Unmarshal(message, &wsMessage); err != nil {
-		return err
-	}
+// 	switch wsMessage.Type {
+// 	case "start":
+// 		handleStartTracking(&wsMessage)
+// 	case "stop":
+// 		handleStopTracking(&wsMessage)
+// 	case "location_update":
+// 		handleLocationUpdate(&wsMessage)
+// 	default:
+// 		log.Printf("Unknown message type: %v", wsMessage.Type)
+// 	}
 
-	if err := validateMessage(&wsMessage); err != nil {
-		return err
-	}
+// 	return nil
+// }
 
-	switch wsMessage.Type {
-	case "start":
-		handleStartTracking(&wsMessage)
-	case "stop":
-		handleStopTracking(&wsMessage)
-	case "location_update":
-		handleLocationUpdate(&wsMessage)
-	default:
-		log.Printf("Unknown message type: %v", wsMessage.Type)
-	}
+// func validateMessage(message *models.WebSocketMessage) error {
 
-	return nil 
-}
+// 	if message.Type == "" {
+// 		return ErrInvalidMessageType
+// 	}
 
+// 	if message.SessionID == "" {
+// 		return ErrMissingSessionID
+// 	}
 
-func validateMessage(message *models.WebSocketMessage) error {
+// 	if message.Type == "location_update" && message.Data == nil {
+// 		return ErrMissingLocationData
+// 	}
+// 	if message.Data != nil {
+// 		if message.Data.Latitude < -90 || message.Data.Latitude > 90 {
+// 			return ErrorInvalidLatitude
+// 		}
+// 		if message.Data.Longitude < -180 || message.Data.Longitude > 180 {
+// 			return ErrorInvalidLongitude
+// 		}
+// 		if message.Data.Accuracy < 0 {
+// 			return ErrorInvalidAccuracy
+// 		}
+// 	}
 
-	if message.Type == "" {
-		return ErrInvalidMessageType
-	}
+// 	return nil
+// }
 
-	if message.SessionID == "" {
-		return ErrMissingSessionID
-	}
+// func handleStartTracking(msg *models.WebSocketMessage)  {
+// 	log.Printf("[START] -> Session ID: %s, Started at : %v", msg.SessionID, time.Unix(0, *msg.State.StartTime*int64(time.Millisecond)))
 
-	if message.Type == "location_update" && message.Data == nil {
-		return ErrMissingLocationData
-	}
-	if message.Data != nil {
-		if message.Data.Latitude < -90 || message.Data.Latitude > 90 {
-			return ErrorInvalidLatitude
-		}
-		if message.Data.Longitude < -180 || message.Data.Longitude > 180 {
-			return ErrorInvalidLongitude
-		}
-		if message.Data.Accuracy < 0 {
-			return ErrorInvalidAccuracy
-		}
-	}
+// }
 
-	return nil
-}
+// func handleLocationUpdate(msg *models.WebSocketMessage) {
+// 	log.Printf("[LOCATION UPDATE] -> Session ID: %s, Lat: %.6f, Lon: %.6f, Accuracy: %.2fm, Timestamp: %v",
+// 		msg.SessionID,
+// 		msg.Data.Latitude,
+// 		msg.Data.Longitude,
+// 		msg.Data.Accuracy,
+// 		time.Unix(0, msg.Data.Timestamp*int64(time.Millisecond)),
+// 	)
 
-func handleStartTracking(msg *models.WebSocketMessage)  {
-	log.Printf("[START] -> Session ID: %s, Started at : %v", msg.SessionID, time.Unix(0, *msg.State.StartTime*int64(time.Millisecond)))
+// 	if msg.Data.Speed > 0 {
+// 		log.Printf("...Speed: %d m/s", msg.Data.Speed)
+// 	}
+// 	if msg.Data.Heading > 0 {
+// 		log.Printf("...Heading: %d degrees", msg.Data.Heading)
+// 	}
 
-}
+// }
 
-func handleLocationUpdate(msg *models.WebSocketMessage) {
-	log.Printf("[LOCATION UPDATE] -> Session ID: %s, Lat: %.6f, Lon: %.6f, Accuracy: %.2fm, Timestamp: %v",
-		msg.SessionID,
-		msg.Data.Latitude,
-		msg.Data.Longitude,
-		msg.Data.Accuracy,
-		time.Unix(0, msg.Data.Timestamp*int64(time.Millisecond)),
-	)
+// func handleStopTracking(msg *models.WebSocketMessage) {
+// 	var duration time.Duration
+// 	if msg.State.StartTime != nil && msg.State.LastUpdateTime != nil {
+// 		startTime := time.Unix(0, *msg.State.StartTime * int64(time.Millisecond))
+// 		endTime := time.Unix(0, *msg.State.LastUpdateTime * int64(time.Millisecond))
+// 		duration = endTime.Sub(startTime)
 
-	if msg.Data.Speed > 0 {
-		log.Printf("...Speed: %d m/s", msg.Data.Speed)
-	}
-	if msg.Data.Heading > 0 {
-		log.Printf("...Heading: %d degrees", msg.Data.Heading)
-	}
+// 		log.Printf("[STOP] Session ID: %v, Duration: %v", msg.SessionID, duration)
 
-}
+// 	}
+// }
 
-func handleStopTracking(msg *models.WebSocketMessage) {
-	var duration time.Duration
-	if msg.State.StartTime != nil && msg.State.LastUpdateTime != nil {
-		startTime := time.Unix(0, *msg.State.StartTime * int64(time.Millisecond))
-		endTime := time.Unix(0, *msg.State.LastUpdateTime * int64(time.Millisecond))
-		duration = endTime.Sub(startTime)
+// func sendError(conn *websocket.Conn, errorMsg string) {
+// 	errorResponse := map[string]string{
+// 		"error": errorMsg,
+// 	}
 
-		log.Printf("[STOP] Session ID: %v, Duration: %v", msg.SessionID, duration)
+// 	if err := conn.WriteJSON(errorResponse); err != nil {
+// 		log.Printf("Error sending error message to client: %v", err)
+// 	}
 
-	}
-}
-
-func sendError(conn *websocket.Conn, errorMsg string) {
-	errorResponse := map[string]string{
-		"error": errorMsg,
-	}
-
-	if err := conn.WriteJSON(errorResponse); err != nil {
-		log.Printf("Error sending error message to client: %v", err)
-	}
-
-}
+// }

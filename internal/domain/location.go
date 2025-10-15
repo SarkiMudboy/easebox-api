@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type LocationUpdate struct {
 	ID         int64
@@ -30,5 +33,5 @@ type DomainError struct {
 }
 
 func (e *DomainError) Error () string {
-	return e.Message
+	return fmt.Sprintf("%s: %s", e.Code, e.Message)
 }

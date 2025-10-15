@@ -5,8 +5,6 @@ import (
 	"log"
 	"net/http"
 	"time"
-
-	"github.com/SarkiMudboy/easebox-api/handlers"
 )
 
 func handleHome(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +26,7 @@ func main() {
 
 	port := ":8080"
 	http.HandleFunc("/", handleHome)
-	http.HandleFunc("/track", handlers.HandleWebSocket)
+	// http.HandleFunc("/track", handlers.HandleWebSocket)
 
 	log.Printf("Server started at http://localhost%s", port)
 

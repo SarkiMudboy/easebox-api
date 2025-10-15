@@ -10,7 +10,7 @@ type AppConfig struct {
 func loadAppConfig() *AppConfig {
 	return &AppConfig{
 		Port: env.GetString("PORT", "8080"),
-		ServerAddress: env.GetString("BASE_URL", "http://localhost:"),
+		ServerAddress: env.GetString("BASE_URL", "http://localhost"),
 	}
 }
 

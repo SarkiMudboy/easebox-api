@@ -18,7 +18,7 @@ func main () {
 	db, err := database.New(cfg.DB)
 
 	if err != nil {
-		log.Fatal("Failed to connect to database")
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
 
@@ -32,8 +32,8 @@ func main () {
 	http.HandleFunc("/ws", wsHandler.HandleConnection)
 	http.Handle("/", http.FileServer(http.Dir("./web/static")))
 
-	log.Printf("Server starting on %s", cfg.App.ServerAddress)
-	if err := http.ListenAndServe(cfg.App.Port, nil); err != nil {
+	log.Printf("Server starting on %s:%s", cfg.App.ServerAddress, cfg.App.Port)
+	if err := http.ListenAndServe(":" + cfg.App.Port, nil); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 

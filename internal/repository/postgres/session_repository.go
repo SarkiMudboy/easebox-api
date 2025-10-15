@@ -36,14 +36,19 @@ func (r *SessionRepository) Create(ctx context.Context, session *domain.Tracking
 
 func (r *SessionRepository) GetByID(ctx context.Context, sessionID string) (session *domain.TrackingSession, err error) {
 	
+
+	session = &domain.TrackingSession{
+		SessionID: sessionID,
+	}
+
 	query := `
 		SELECT 
-			(delivery_id, start_time, end_time, is_active) 
+			delivery_id, start_time, end_time, is_active
 		FROM tracking_session 
 		WHERE session_id = $1;
 	`
 
-	err = r.db.QueryRowContext(ctx, query, sessionID).Scan(&session.DeliveryID, &session.StartTime, &session.EndTime, session.IsActive)
+	err = r.db.QueryRowContext(ctx, query, sessionID).Scan(session.DeliveryID, session.StartTime, session.EndTime, session.IsActive)
 
 	return
 }
@@ -55,7 +60,7 @@ func (r *SessionRepository) Update(ctx context.Context, session *domain.Tracking
 		WHERE session_id = $1;
 	`
 
-	_, err := r.db.ExecContext(ctx, query, session.DeliveryID, session.StartTime, session.EndTime, session.IsActive)
+	_, err := r.db.ExecContext(ctx, query, session.SessionID, session.DeliveryID, session.StartTime, session.EndTime, session.IsActive)
 	if err != nil {
 		return fmt.Errorf("Failed to update tracking session %v: %v", session.SessionID, err)
 	}
