@@ -83,7 +83,7 @@ func (r *locationRepository) GetBySessionID(ctx context.Context, sessionID strin
 func (r *locationRepository) GetByDeliveryID(ctx context.Context, deliveryID string) (locations []*domain.LocationUpdate, err error) {
 	query := `
 		SELECT 
-			(id, session_id, ST_Y(location::geometry) as latitude, ST_X(location::geometry) as longitude, accuracy, speed, heading, recorded_at, created_at) 
+			id, session_id, ST_Y(location::geometry) as latitude, ST_X(location::geometry) as longitude, accuracy, speed, heading, recorded_at, created_at
 		FROM location_updates 
 			WHERE delivery_id = $1
 		ORDER BY recorded_at ASC
@@ -100,7 +100,7 @@ func (r *locationRepository) GetByDeliveryID(ctx context.Context, deliveryID str
 		location := &domain.LocationUpdate{}
 
 		err = rows.Scan(
-			&location.ID, location.SessionID, &location.Latitude, &location.Accuracy, &location.Speed, &location.Heading, &location.RecordedAt, &location.CreatedAt,
+			&location.ID, &location.SessionID, &location.Latitude, &location.Longitude, &location.Accuracy, &location.Speed, &location.Heading, &location.RecordedAt, &location.CreatedAt,
 		)
 
 		if err != nil {
@@ -112,7 +112,9 @@ func (r *locationRepository) GetByDeliveryID(ctx context.Context, deliveryID str
 	return
 }
 
-func (r *locationRepository) GetLatestBySessionID(ctx context.Context, sessionID string) (loc *domain.LocationUpdate, err error) {
+func (r *locationRepository) GetLatestBySessionID(ctx context.Context, sessionID string) (*domain.LocationUpdate, error) {
+
+	location := &domain.LocationUpdate{}
 
 	query := `
 		SELECT DISTINCT ON (session_id)
@@ -131,13 +133,15 @@ func (r *locationRepository) GetLatestBySessionID(ctx context.Context, sessionID
 		LIMIT 1;
 	`
 
-	err = r.db.QueryRowContext(ctx, query, sessionID).Scan(&loc)
+	err := r.db.QueryRowContext(ctx, query, sessionID).Scan(
+		&location.ID, &location.SessionID, &location.Latitude, &location.Longitude, &location.Accuracy, &location.Speed, &location.Heading, &location.RecordedAt, &location.CreatedAt,
+	)
 
 	if err != nil {
 		return nil, fmt.Errorf("Failed to retrieve location: %v", err)
 	}
 
-	return
+	return location, nil
 }
 
 // func GetWithinRadius(ctx context.Context, lat, long, radiusMeters float64) ([]*domain.LocationUpdate, error) {}

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -64,6 +63,12 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 
 	defer conn.Close()
 
+
+	conn.SetPongHandler(func (string) error {
+		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		return nil
+	})
+
 	// ping op to maintain connection
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
@@ -99,15 +104,21 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			continue
 		}
 
-		ctx := context.Background()
+		ctx := r.Context()
 
 
 		switch msg.Type {
 		case "start":
 			err = h.locationService.StartTracking(ctx, msg.State.SessionID, msg.State.DeliveryID)
-			log.Printf("[START] -> Session ID: %s, Started at : %v", msg.SessionID, time.Unix(0, *msg.State.StartTime*int64(time.Millisecond)))
+			log.Printf("[START] -> Session ID: %s, Started at : %v", msg.SessionID, time.UnixMilli(*msg.State.StartTime))
 		case "location_update":
 			loc := h.MessageToLocation(&msg)
+
+			if loc == nil {
+				log.Printf("missing location_update data")
+				continue
+			}
+
 			err = h.locationService.RecordLocation(ctx, loc)
 
 			log.Printf("[LOCATION UPDATE] -> Session ID: %s, Lat: %.6f, Lon: %.6f, Accuracy: %.2fm, Timestamp: %v",
@@ -115,7 +126,7 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 				msg.Data.Latitude,
 				msg.Data.Longitude,
 				msg.Data.Accuracy,
-				time.Unix(0, msg.Data.Timestamp*int64(time.Millisecond)),
+				time.UnixMilli(msg.Data.Timestamp),
 			)
 
 		case "stop":
@@ -123,8 +134,8 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 
 			var duration time.Duration
 			if msg.State.StartTime != nil && msg.State.LastUpdateTime != nil {
-				startTime := time.Unix(0, *msg.State.StartTime * int64(time.Millisecond))
-				endTime := time.Unix(0, *msg.State.LastUpdateTime * int64(time.Millisecond))
+				startTime := time.UnixMilli(*msg.State.StartTime)
+				endTime := time.UnixMilli(*msg.State.LastUpdateTime)
 				duration = endTime.Sub(startTime)
 
 				log.Printf("[STOP] Session ID: %v, Duration: %v", msg.SessionID, duration)
@@ -142,6 +153,10 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 
 func (h *WebSocketHandler) MessageToLocation (message *WebSocketMessage) *domain.LocationUpdate {
 
+	if message.Data == nil {
+		return nil
+	}
+
 	return &domain.LocationUpdate{
 		SessionID: message.SessionID,
 		DeliveryID: message.State.DeliveryID,
@@ -150,7 +165,7 @@ func (h *WebSocketHandler) MessageToLocation (message *WebSocketMessage) *domain
 		Accuracy: message.Data.Accuracy,
 		Speed: &message.Data.Speed,
 		Heading: &message.Data.Heading,
-		RecordedAt: time.Unix(0, message.Data.Timestamp * int64(time.Millisecond)),
+		RecordedAt: time.UnixMilli(message.Data.Timestamp),
 	}
 
 }
