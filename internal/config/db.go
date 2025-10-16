@@ -15,7 +15,7 @@ type DBConfig struct {
 
 func loadDBConfig() *DBConfig {
 	return &DBConfig{
-		Addr:            env.GetString("DB_ADDR", "admin:1234@/admin?parseTime=true"),
+		Addr:            env.GetString("DB_ADDR", ""),
 		MaxIdleConn:     env.GetInt("DB_MAX_IDLE_CONN", 10),
 		MaxOpenConn:     env.GetInt("DB_MAX_OPEN_CONN", 10),
 		MaxConnLifetime: time.Duration(env.GetInt("DB_MAX_CONN_LIFETIME", 10)) * time.Second,

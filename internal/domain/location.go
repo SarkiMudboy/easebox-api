@@ -12,8 +12,8 @@ type LocationUpdate struct {
 	Latitude   float64
 	Longitude  float64
 	Accuracy   float64
-	Speed      *int64
-	Heading    *int64
+	Speed      *float64
+	Heading    *float64
 	RecordedAt time.Time
 	CreatedAt time.Time 
 }

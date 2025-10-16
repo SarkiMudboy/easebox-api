@@ -17,8 +17,8 @@ type LocationData struct {
 	Longitude float64 `json:"longitude"`
 	Accuracy  float64 `json:"accuracy"`
 	Timestamp int64   `json:"timestamp"`
-	Speed     int64   `json:"speed"`
-	Heading   int64   `json:"heading"`
+	Speed     float64   `json:"speed"`
+	Heading   float64   `json:"heading"`
 }
 
 type TrackingState struct {

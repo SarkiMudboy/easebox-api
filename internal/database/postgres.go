@@ -10,10 +10,12 @@ import (
 	_ "github.com/lib/pq"
 )
 
-var db *sql.DB
-var err error
 
 func New(cfg *config.DBConfig) (*sql.DB, error) {
+	
+	var db *sql.DB
+	var err error
+	
 	db, err = sql.Open("postgres", cfg.Addr)
 	if err != nil {
 		return nil, err
