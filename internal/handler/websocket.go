@@ -105,14 +105,35 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		switch msg.Type {
 		case "start":
 			err = h.locationService.StartTracking(ctx, msg.State.SessionID, msg.State.DeliveryID)
+			log.Printf("[START] -> Session ID: %s, Started at : %v", msg.SessionID, time.Unix(0, *msg.State.StartTime*int64(time.Millisecond)))
 		case "location_update":
 			loc := h.MessageToLocation(&msg)
 			err = h.locationService.RecordLocation(ctx, loc)
+
+			log.Printf("[LOCATION UPDATE] -> Session ID: %s, Lat: %.6f, Lon: %.6f, Accuracy: %.2fm, Timestamp: %v",
+				msg.SessionID,
+				msg.Data.Latitude,
+				msg.Data.Longitude,
+				msg.Data.Accuracy,
+				time.Unix(0, msg.Data.Timestamp*int64(time.Millisecond)),
+			)
+
 		case "stop":
 			err = h.locationService.StopTracking(ctx, msg.SessionID)
+
+			var duration time.Duration
+			if msg.State.StartTime != nil && msg.State.LastUpdateTime != nil {
+				startTime := time.Unix(0, *msg.State.StartTime * int64(time.Millisecond))
+				endTime := time.Unix(0, *msg.State.LastUpdateTime * int64(time.Millisecond))
+				duration = endTime.Sub(startTime)
+
+				log.Printf("[STOP] Session ID: %v, Duration: %v", msg.SessionID, duration)
+
+			}
 		}
 
 		if err != nil {
+			log.Println(msg.Data, msg.State)
 			log.Printf("Service error: %v", err)
 		}
 

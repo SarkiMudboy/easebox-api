@@ -123,6 +123,7 @@
       let trackingState = {
         isTracking: false,
         sessionId: null,
+        deliveryId: null,
         startTime: null,
         latUpdateTime: null,
       };
@@ -234,6 +235,7 @@
         trackingState = {
           isTracking: true,
           sessionId: sessionId,
+          deliveryId: crypto.randomUUID(),
           startTime: Date.now(),
           lastUpdateTime: null,
         };

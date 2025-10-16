@@ -23,14 +23,14 @@ func (r *locationRepository) Create(ctx context.Context, location *domain.Locati
 		INSERT INTO location_updates 
 			(session_id, delivery_id, location, accuracy, speed, heading, recorded_at) 
 		VALUES 
-			($1, $2, $3, ST_SetSRID(ST_MakePoint($3, $4), 4326), $5, $6, $7, $8) 
+			($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326), $5, $6, $7, $8) 
 		RETURNING id, created_at
 	`
 
 	err := r.db.QueryRowContext(
 		ctx, 
 		query,
-		location.SessionID, 
+		location.SessionID,
 		location.DeliveryID, 
 		location.Longitude,
 		location.Latitude, 

@@ -4,23 +4,22 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 -- Enable UUID extension for generating UUIDs
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-
 -- ============================================
 -- Tracking Sessions Table
 -- ============================================
 -- Stores metadata about each tracking session
 CREATE TABLE tracking_sessions (
     id BIGSERIAL PRIMARY KEY,
-    session_id UUID NOT NULL UNIQUE,
-    delivery_id VARCHAR(255) NOT NULL,
+    session_id VARCHAR(255) NOT NULL UNIQUE,
+    delivery_id UUID,
     is_active BOOLEAN NOT NULL DEFAULT true,
-    start_time TIMESTAMPZ NOT NULL DEFAULT NOW(),
-    end_time TIMESTAMPZ,
-    created_at TIMESTAMPZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPZ NOT NULL DEFAULT NOW(),
+    start_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    end_time TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     -- Constraints
-    CONSTRANT check_end_time_after_start CHECK (end_time IS null OR end_time >= start_time)  
+    CONSTRAINT check_end_time_after_start CHECK (end_time IS null OR end_time >= start_time)  
 );
 
 
@@ -42,8 +41,8 @@ CREATE INDEX idx_tracking_sessions_start_time
 CREATE TABLE location_updates (
     
     id BIGSERIAL PRIMARY KEY,
-    session_id UUID NOT NULL,
-    delivery_id VARCHAR(255),
+    session_id VARCHAR(255) NOT NULL,
+    delivery_id UUID,
 
      -- SRID 4326 = WGS84 coordinate system (standard GPS coordinates)
     location GEOGRAPHY(POINT, 4326) NOT NULL,
@@ -53,8 +52,8 @@ CREATE TABLE location_updates (
     speed DOUBLE PRECISION CHECK (speed IS NULL OR speed >= 0),
     heading DOUBLE PRECISION CHECK (heading IS NULL OR heading >= 0 AND heading <= 360),
 
-    recorded_at TIMESTAMPZ NOT NULL,
-    created_at TIMESTAMPZ NOT NULL DEFAULT NOW(),
+    recorded_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     CONSTRAINT fk_location_tracking_session FOREIGN KEY (session_id) 
         REFERENCES tracking_sessions(session_id)
@@ -88,8 +87,8 @@ CREATE INDEX idx_location_updates_recorded_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at = NOW()
-    RETURN NEW
+    NEW.updated_at = NOW();
+    RETURN NEW;
 END;
 
 $$ LANGUAGE plpgsql;
@@ -98,4 +97,4 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trigger_update_tracking_sessions_updated_at
     BEFORE UPDATE ON tracking_sessions
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column()
+    EXECUTE FUNCTION update_updated_at_column();

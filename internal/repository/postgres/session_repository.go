@@ -20,7 +20,7 @@ func NewSessionRepository(db *sql.DB) repository.SessionRepository {
 func (r *SessionRepository) Create(ctx context.Context, session *domain.TrackingSession) error {
 
 	query := `
-		INSERT INTO tracking_session
+		INSERT INTO tracking_sessions
 			(session_id, delivery_id, start_time, is_active)
 		VALUES ($1, $2, $3, $4);
 	`
@@ -35,7 +35,6 @@ func (r *SessionRepository) Create(ctx context.Context, session *domain.Tracking
 }
 
 func (r *SessionRepository) GetByID(ctx context.Context, sessionID string) (session *domain.TrackingSession, err error) {
-	
 
 	session = &domain.TrackingSession{
 		SessionID: sessionID,
@@ -44,18 +43,18 @@ func (r *SessionRepository) GetByID(ctx context.Context, sessionID string) (sess
 	query := `
 		SELECT 
 			delivery_id, start_time, end_time, is_active
-		FROM tracking_session 
+		FROM tracking_sessions 
 		WHERE session_id = $1;
 	`
 
-	err = r.db.QueryRowContext(ctx, query, sessionID).Scan(session.DeliveryID, session.StartTime, session.EndTime, session.IsActive)
+	err = r.db.QueryRowContext(ctx, query, sessionID).Scan(&session.DeliveryID, &session.StartTime, &session.EndTime, &session.IsActive)
 
 	return
 }
 
 func (r *SessionRepository) Update(ctx context.Context, session *domain.TrackingSession) error {
 	query := `
-		UPDATE tracking_session 
+		UPDATE tracking_sessions 
 			SET delivery_id = $2, start_time = $3, end_time = $4, is_active = $5
 		WHERE session_id = $1;
 	`

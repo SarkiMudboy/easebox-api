@@ -29,7 +29,7 @@ func main () {
 
 	wsHandler := handler.NewWebSocketHandler(locationService)
 
-	http.HandleFunc("/ws", wsHandler.HandleConnection)
+	http.HandleFunc("/track", wsHandler.HandleConnection)
 	http.Handle("/", http.FileServer(http.Dir("./web/static")))
 
 	log.Printf("Server starting on %s:%s", cfg.App.ServerAddress, cfg.App.Port)
