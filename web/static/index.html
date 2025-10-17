@@ -79,7 +79,7 @@
       }
     </style>
     <div class="root">
-      <h2 id="bigTitle">Real-time location tracker @ {{.}}</h2>
+      <h2 id="bigTitle">Real-time location tracker @ Now</h2>
       <div class="data-area">
         <h3 id="status">Status: DISCONNECTED</h3>
         <div class="display-box" id="location-data">
@@ -123,6 +123,7 @@
       let trackingState = {
         isTracking: false,
         sessionId: null,
+        deliveryId: null,
         startTime: null,
         latUpdateTime: null,
       };
@@ -234,6 +235,7 @@
         trackingState = {
           isTracking: true,
           sessionId: sessionId,
+          deliveryId: crypto.randomUUID(),
           startTime: Date.now(),
           lastUpdateTime: null,
         };
