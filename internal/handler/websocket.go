@@ -32,7 +32,7 @@ type WebSocketMessage struct {
 	Type      string        `json:"type"`
 	SessionID string        `json:"sessionId"`
 	Data      *LocationData `json:"data"`
-	State     TrackingState `json:"state"`
+	State     *TrackingState `json:"state"`
 }
 
 type WebSocketHandler struct {
@@ -104,6 +104,11 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			continue
 		}
 
+		if !h.validateWebSocketMessage(&msg) {
+			log.Printf("Invalid message")
+			continue
+		}
+
 		ctx := r.Context()
 
 
@@ -169,4 +174,25 @@ func (h *WebSocketHandler) MessageToLocation (message *WebSocketMessage) *domain
 	}
 
 }
+
+func (h * WebSocketHandler) validateWebSocketMessage (msg *WebSocketMessage) bool {
+
+	if msg.SessionID == "" {
+		return false
+	}
+
+	if msg.Type == "location_update" {
+		if msg.State == nil || msg.State.SessionID == "" {
+			return false
+		}
+
+		if msg.Data.Timestamp <= 0 {
+			msg.Data.Timestamp = time.Now().Unix()
+		}
+	}
+
+	return true
+	
+}
+
 
